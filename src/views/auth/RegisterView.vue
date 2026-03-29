@@ -1,10 +1,12 @@
 <template>
   <div class="register-container">
     <div class="register-card">
+      <!-- 注册头部 -->
       <div class="register-header">
         <el-icon :size="40" color="#409eff"><Aim /></el-icon>
         <h2>注册账号</h2>
       </div>
+      <!-- 注册表单 -->
       <el-form ref="formRef" :model="form" :rules="rules" size="large" @submit.prevent="handleRegister">
         <el-form-item prop="username">
           <el-input v-model="form.username" placeholder="请输入用户名" prefix-icon="User" />
@@ -22,6 +24,7 @@
           <el-button type="primary" :loading="loading" class="register-btn" @click="handleRegister">注 册</el-button>
         </el-form-item>
       </el-form>
+      <!-- 注册底部 -->
       <div class="register-footer">
         已有账号？<router-link to="/login">立即登录</router-link>
       </div>
@@ -36,11 +39,22 @@ import { registerApi } from '@/api/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
+/**
+ * 注册页面组件
+ * 提供用户注册功能，包括表单验证和注册逻辑
+ */
+
+// 路由
 const router = useRouter()
+
+// 表单引用和状态
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const form = reactive({ username: '', email: '', password: '', confirmPassword: '' })
 
+/**
+ * 表单验证规则
+ */
 const rules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -66,17 +80,25 @@ const rules: FormRules = {
   ],
 }
 
+/**
+ * 处理注册逻辑
+ * 1. 验证表单
+ * 2. 调用注册接口
+ * 3. 注册成功后跳转到登录页
+ */
 async function handleRegister() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
   loading.value = true
   try {
+    // 调用注册API
     await registerApi({ username: form.username, password: form.password, email: form.email })
     ElMessage.success('注册成功，请登录')
+    // 跳转到登录页
     router.push('/login')
   } catch {
-    // error handled by interceptor
+    // 错误由拦截器处理
   } finally {
     loading.value = false
   }

@@ -2,7 +2,7 @@
   <div class="page-container">
     <h2 class="page-title">识别历史</h2>
 
-    <!-- Filters -->
+    <!-- 筛选条件 -->
     <el-card shadow="hover" class="filter-card">
       <el-form :inline="true" :model="filters">
         <el-form-item label="关键词">
@@ -17,7 +17,7 @@
       </el-form>
     </el-card>
 
-    <!-- History List -->
+    <!-- 历史记录列表 -->
     <el-card shadow="hover" style="margin-top: 16px;">
       <el-table :data="historyStore.detectionRecords" v-loading="historyStore.loading" stripe>
         <el-table-column label="时间" width="180">
@@ -45,6 +45,7 @@
         </el-table-column>
       </el-table>
 
+      <!-- 分页控件 -->
       <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
@@ -64,17 +65,30 @@ import { useRouter } from 'vue-router'
 import { useHistoryStore } from '@/stores/history'
 import { formatDate } from '@/utils/format'
 
+/**
+ * 识别历史页面组件
+ * 展示用户的矿物识别历史，支持搜索、筛选和分页
+ */
+
+// 路由和状态管理
 const router = useRouter()
 const historyStore = useHistoryStore()
 
+// 分页和筛选状态
 const currentPage = ref(1)
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({ keyword: '' })
 
+/**
+ * 组件挂载后加载数据
+ */
 onMounted(() => {
   loadData()
 })
 
+/**
+ * 加载识别历史数据
+ */
 function loadData() {
   historyStore.fetchDetectionHistory({
     page: currentPage.value,
@@ -85,16 +99,27 @@ function loadData() {
   })
 }
 
+/**
+ * 处理搜索
+ */
 function handleSearch() {
   currentPage.value = 1
   loadData()
 }
 
+/**
+ * 处理页码变化
+ * @param page 新的页码
+ */
 function handlePageChange(page: number) {
   currentPage.value = page
   loadData()
 }
 
+/**
+ * 处理删除记录
+ * @param id 记录ID
+ */
 async function handleDelete(id: string) {
   await historyStore.removeDetectionRecord(id)
 }

@@ -1,11 +1,13 @@
 <template>
   <div class="login-container">
     <div class="login-card">
+      <!-- 登录头部 -->
       <div class="login-header">
         <el-icon :size="40" color="#409eff"><Aim /></el-icon>
         <h2>智能矿物识别系统</h2>
         <p>基于YOLO与LLM协同的科普问答平台</p>
       </div>
+      <!-- 登录表单 -->
       <el-form ref="formRef" :model="form" :rules="rules" size="large" @submit.prevent>
         <el-form-item prop="username">
           <el-input v-model="form.username" placeholder="请输入用户名" prefix-icon="User" />
@@ -17,6 +19,7 @@
           <el-button type="primary" :loading="loading" class="login-btn" @click="handleLogin">登 录</el-button>
         </el-form-item>
       </el-form>
+      <!-- 登录底部 -->
       <div class="login-footer">
         还没有账号？<router-link to="/register">立即注册</router-link>
       </div>
@@ -31,14 +34,24 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
+/**
+ * 登录页面组件
+ * 提供用户登录功能，包括表单验证和登录逻辑
+ */
+
+// 路由和状态管理
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
+// 表单引用和状态
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const form = reactive({ username: '', password: '' })
 
+/**
+ * 表单验证规则
+ */
 const rules: FormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [
@@ -47,6 +60,12 @@ const rules: FormRules = {
   ],
 }
 
+/**
+ * 处理登录逻辑
+ * 1. 验证表单
+ * 2. 调用登录接口
+ * 3. 登录成功后跳转
+ */
 async function handleLogin() {
   if (loading.value) return
   const valid = await formRef.value?.validate().catch(() => false)
@@ -54,8 +73,10 @@ async function handleLogin() {
 
   loading.value = true
   try {
+    // 调用用户store的登录方法
     await userStore.login(form)
     ElMessage.success('登录成功')
+    // 获取重定向地址，默认为首页
     const redirect = (route.query.redirect as string) || '/'
     await router.push(redirect)
   } catch (err: any) {

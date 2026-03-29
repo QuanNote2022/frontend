@@ -2,6 +2,7 @@
   <div class="page-container">
     <h2 class="page-title">个人中心</h2>
     <el-row :gutter="20">
+      <!-- 个人信息卡片 -->
       <el-col :span="8">
         <el-card shadow="hover">
           <div class="profile-avatar-section">
@@ -14,7 +15,9 @@
           </div>
         </el-card>
       </el-col>
+      <!-- 信息修改卡片 -->
       <el-col :span="16">
+        <!-- 基本信息 -->
         <el-card shadow="hover">
           <template #header>
             <span>基本信息</span>
@@ -35,6 +38,7 @@
           </el-form>
         </el-card>
 
+        <!-- 修改密码 -->
         <el-card shadow="hover" style="margin-top: 20px;">
           <template #header>
             <span>修改密码</span>
@@ -67,16 +71,27 @@ import { formatDate } from '@/utils/format'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
+/**
+ * 个人中心页面组件
+ * 展示和修改用户个人信息，包括基本信息和密码修改
+ */
+
+// 状态管理
 const userStore = useUserStore()
 
+// 基本信息表单
 const profileFormRef = ref<FormInstance>()
 const profileLoading = ref(false)
 const profileForm = reactive({ nickname: '', email: '' })
 
+// 密码修改表单
 const pwdFormRef = ref<FormInstance>()
 const pwdLoading = ref(false)
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 
+/**
+ * 密码修改表单验证规则
+ */
 const pwdRules: FormRules = {
   oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
   newPassword: [
@@ -95,6 +110,9 @@ const pwdRules: FormRules = {
   ],
 }
 
+/**
+ * 组件挂载后初始化表单数据
+ */
 onMounted(() => {
   if (userStore.userInfo) {
     profileForm.nickname = userStore.userInfo.nickname || ''
@@ -102,18 +120,24 @@ onMounted(() => {
   }
 })
 
+/**
+ * 处理更新个人信息
+ */
 async function handleUpdateProfile() {
   profileLoading.value = true
   try {
     await userStore.updateProfile(profileForm)
     ElMessage.success('信息更新成功')
   } catch {
-    // handled
+    // 错误由拦截器处理
   } finally {
     profileLoading.value = false
   }
 }
 
+/**
+ * 处理修改密码
+ */
 async function handleUpdatePassword() {
   const valid = await pwdFormRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -122,11 +146,12 @@ async function handleUpdatePassword() {
   try {
     await updatePasswordApi({ oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
     ElMessage.success('密码修改成功')
+    // 清空表单
     pwdForm.oldPassword = ''
     pwdForm.newPassword = ''
     pwdForm.confirmPassword = ''
   } catch {
-    // handled
+    // 错误由拦截器处理
   } finally {
     pwdLoading.value = false
   }

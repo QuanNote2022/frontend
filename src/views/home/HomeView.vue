@@ -2,7 +2,7 @@
   <div class="page-container">
     <h2 class="page-title">系统概览</h2>
 
-    <!-- Stats Cards -->
+    <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="12" :sm="6" v-for="card in statsCards" :key="card.label">
         <el-card shadow="hover" class="stat-card">
@@ -17,7 +17,7 @@
       </el-col>
     </el-row>
 
-    <!-- Charts -->
+    <!-- 图表 -->
     <el-row :gutter="20" style="margin-top: 20px;">
       <el-col :span="16">
         <el-card shadow="hover">
@@ -33,7 +33,7 @@
       </el-col>
     </el-row>
 
-    <!-- Recent Activity -->
+    <!-- 最近活动 -->
     <el-card shadow="hover" style="margin-top: 20px;">
       <template #header><span>最近活动</span></template>
       <el-table :data="recentDetections" stripe style="width: 100%" max-height="300">
@@ -65,9 +65,21 @@ import { formatDate } from '@/utils/format'
 import StatChart from '@/components/common/StatChart.vue'
 import type { EChartsOption } from 'echarts'
 
+/**
+ * 首页视图组件
+ * 展示系统概览、统计数据和最近活动
+ */
+
+// 路由和状态管理
 const router = useRouter()
 const historyStore = useHistoryStore()
 
+/**
+ * 组件挂载后获取数据
+ * 1. 系统统计数据
+ * 2. 矿物识别频率
+ * 3. 最近检测历史
+ */
 onMounted(async () => {
   await Promise.all([
     historyStore.fetchStats(),
@@ -76,6 +88,10 @@ onMounted(async () => {
   ])
 })
 
+/**
+ * 统计卡片数据
+ * 基于历史store中的统计数据生成
+ */
 const statsCards = computed(() => [
   { label: '总识别次数', value: historyStore.stats?.totalDetections || 0, icon: 'Camera', color: '#409eff' },
   { label: '总问答次数', value: historyStore.stats?.totalChats || 0, icon: 'ChatDotRound', color: '#67c23a' },
@@ -83,8 +99,15 @@ const statsCards = computed(() => [
   { label: '本周活跃天数', value: historyStore.stats?.weeklyActiveDays || 0, icon: 'Calendar', color: '#f56c6c' },
 ])
 
+/**
+ * 最近检测记录
+ * 取前5条记录
+ */
 const recentDetections = computed(() => historyStore.detectionRecords.slice(0, 5))
 
+/**
+ * 矿物识别频率柱状图配置
+ */
 const barChartOption = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'axis' },
   xAxis: {
@@ -113,6 +136,9 @@ const barChartOption = computed<EChartsOption>(() => ({
   grid: { left: 60, right: 20, bottom: 60, top: 30 },
 }))
 
+/**
+ * 矿物类型分布饼图配置
+ */
 const pieChartOption = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
   legend: { bottom: 0, type: 'scroll' },

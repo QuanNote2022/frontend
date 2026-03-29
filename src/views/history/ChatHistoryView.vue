@@ -3,6 +3,7 @@
     <h2 class="page-title">问答历史</h2>
 
     <el-card shadow="hover">
+      <!-- 问答历史表格 -->
       <el-table :data="historyStore.chatRecords" v-loading="historyStore.loading" stripe>
         <el-table-column prop="title" label="会话标题" min-width="200" />
         <el-table-column label="关联矿物" width="120">
@@ -27,6 +28,7 @@
         </el-table-column>
       </el-table>
 
+      <!-- 分页控件 -->
       <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
@@ -47,23 +49,45 @@ import { useHistoryStore } from '@/stores/history'
 import { formatDate } from '@/utils/format'
 import { deleteSessionApi } from '@/api/chat'
 
+/**
+ * 问答历史页面组件
+ * 展示用户的聊天会话历史，支持分页和删除操作
+ */
+
+// 路由和状态管理
 const router = useRouter()
 const historyStore = useHistoryStore()
+
+// 当前页码
 const currentPage = ref(1)
 
+/**
+ * 组件挂载后加载数据
+ */
 onMounted(() => {
   loadData()
 })
 
+/**
+ * 加载问答历史数据
+ */
 function loadData() {
   historyStore.fetchChatHistory(currentPage.value, 10)
 }
 
+/**
+ * 处理页码变化
+ * @param page 新的页码
+ */
 function handlePageChange(page: number) {
   currentPage.value = page
   loadData()
 }
 
+/**
+ * 处理删除会话
+ * @param sessionId 会话ID
+ */
 async function handleDelete(sessionId: string) {
   await deleteSessionApi(sessionId)
   loadData()

@@ -1,6 +1,6 @@
 <template>
   <div class="chat-page">
-    <!-- Sidebar: Session List -->
+    <!-- 侧边栏：会话列表 -->
     <div class="chat-sidebar">
       <el-button type="primary" class="new-chat-btn" @click="handleNewChat">
         <el-icon><Plus /></el-icon>新建对话
@@ -23,16 +23,16 @@
       </div>
     </div>
 
-    <!-- Main Chat Area -->
+    <!-- 主聊天区域 -->
     <div class="chat-main">
-      <!-- Mineral Context Banner -->
+      <!-- 矿物上下文横幅 -->
       <div v-if="chatStore.mineralContext" class="mineral-context-banner">
         <el-icon><Aim /></el-icon>
         <span>当前矿物上下文：<strong>{{ chatStore.mineralContext }}</strong></span>
         <el-button text size="small" @click="chatStore.setMineralContext(null)">清除</el-button>
       </div>
 
-      <!-- Messages -->
+      <!-- 消息列表 -->
       <div ref="messagesRef" class="messages-container">
         <div v-if="chatStore.messages.length === 0 && !chatStore.currentSessionId" class="welcome-state">
           <el-icon :size="64" color="#409eff"><ChatDotRound /></el-icon>
@@ -55,7 +55,7 @@
         </div>
       </div>
 
-      <!-- Input Area -->
+      <!-- 输入区域 -->
       <div class="input-area">
         <el-input
           v-model="inputText"
@@ -84,12 +84,22 @@ import { useRoute } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import ChatMessageComp from '@/components/common/ChatMessage.vue'
 
+/**
+ * 聊天页面组件
+ * 提供矿物科普智能问答功能，支持多会话管理
+ */
+
+// 路由和状态管理
 const route = useRoute()
 const chatStore = useChatStore()
 
+// 输入文本和消息容器引用
 const inputText = ref('')
 const messagesRef = ref<HTMLDivElement>()
 
+/**
+ * 推荐问题列表
+ */
 const suggestedQuestions = [
   '石英有哪些常见的用途？',
   '如何区分方解石和石英？',
@@ -97,19 +107,28 @@ const suggestedQuestions = [
   '黄铁矿为什么叫愚人金？',
 ]
 
+/**
+ * 组件挂载后初始化
+ * 1. 加载会话列表
+ * 2. 处理矿物上下文参数
+ * 3. 处理会话ID参数
+ */
 onMounted(async () => {
   await chatStore.loadSessions()
 
   const mineralName = route.query.mineral as string
   if (mineralName) {
+    // 设置矿物上下文并创建新会话
     chatStore.setMineralContext(mineralName)
     await chatStore.createSession(mineralName)
     await handleSendMessage(`请详细介绍一下${mineralName}的特性、产地和用途。`)
   } else if (route.params.sessionId) {
+    // 切换到指定会话
     await chatStore.switchSession(route.params.sessionId as string)
   }
 })
 
+// 监听消息变化，自动滚动到底部
 watch(
   () => chatStore.messages.length,
   () => {
@@ -117,6 +136,7 @@ watch(
   }
 )
 
+// 监听流式内容变化，自动滚动到底部
 watch(
   () => chatStore.streamingContent,
   () => {
@@ -124,12 +144,19 @@ watch(
   }
 )
 
+/**
+ * 滚动到消息底部
+ */
 function scrollToBottom() {
   if (messagesRef.value) {
     messagesRef.value.scrollTop = messagesRef.value.scrollHeight
   }
 }
 
+/**
+ * 处理键盘事件
+ * Enter 发送消息，Shift+Enter 换行
+ */
 function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -137,6 +164,9 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
+/**
+ * 处理发送消息
+ */
 async function handleSend() {
   const text = inputText.value.trim()
   if (!text) return
@@ -144,27 +174,43 @@ async function handleSend() {
   await handleSendMessage(text)
 }
 
+/**
+ * 发送消息到聊天API
+ */
 async function handleSendMessage(text: string) {
   if (!chatStore.currentSessionId) {
+    // 如果没有当前会话，创建新会话
     await chatStore.createSession(chatStore.mineralContext || undefined)
   }
   await chatStore.sendMessage(text)
 }
 
+/**
+ * 发送快速问题
+ */
 async function sendQuickQuestion(q: string) {
   inputText.value = q
   await handleSend()
 }
 
+/**
+ * 处理新建对话
+ */
 async function handleNewChat() {
   chatStore.setMineralContext(null)
   await chatStore.createSession()
 }
 
+/**
+ * 处理切换会话
+ */
 async function handleSwitchSession(sessionId: string) {
   await chatStore.switchSession(sessionId)
 }
 
+/**
+ * 处理删除会话
+ */
 async function handleDeleteSession(sessionId: string) {
   await chatStore.removeSession(sessionId)
 }
