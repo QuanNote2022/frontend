@@ -73,7 +73,7 @@ async function handleLogin() {
 
   loading.value = true
   try {
-    // 调用用户store的登录方法
+    // 调用用户 store 的登录方法
     await userStore.login(form)
     ElMessage.success('登录成功')
     // 获取重定向地址，默认为首页

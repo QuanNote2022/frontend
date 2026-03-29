@@ -8,13 +8,14 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 
-/**
- * 组件属性
- */
-const props = defineProps<{
-  option: EChartsOption // ECharts 配置选项
-  height?: number // 图表高度，默认自适应
-}>
+interface Props {
+  option: EChartsOption
+  height?: number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  height: 300
+})
 
 // 图表容器引用
 const chartRef = ref<HTMLDivElement>()

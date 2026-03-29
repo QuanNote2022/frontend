@@ -28,13 +28,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/components/layout/MainLayout.vue'),
+    meta: { title: '首页' },
     children: [
       // 首页
       {
         path: '',
         name: 'Home',
         component: () => import('@/views/home/HomeView.vue'),
-        meta: { title: '首页' },
       },
       // 矿物识别页面
       {
@@ -107,10 +107,12 @@ router.beforeEach((to, _from, next) => {
   document.title = `${to.meta.title || '矿物识别系统'} - 智能矿物识别与科普问答系统`
   
   // 处理身份验证
+  const hasToken = getToken()
+  
   if (to.meta.public) {
     // 公共页面直接通过
     next()
-  } else if (!getToken()) {
+  } else if (!hasToken) {
     // 未登录用户重定向到登录页
     next({ path: '/login', query: { redirect: to.fullPath } })
   } else {

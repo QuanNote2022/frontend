@@ -1,13 +1,13 @@
 <template>
-  <!-- 侧边栏容器，根据collapsed属性调整宽度 -->
+  <!-- 侧边栏容器，根据 collapsed 属性调整宽度 -->
   <el-aside :width="collapsed ? '64px' : '220px'" class="app-sidebar">
     <!-- 侧边栏菜单 -->
     <el-menu
-      :default-active="activeMenu" <!-- 当前激活的菜单项 -->
-      :collapse="collapsed" <!-- 是否折叠菜单 -->
-      router <!-- 启用路由模式 -->
+      :default-active="activeMenu"
+      :collapse="collapsed"
+      router
       class="sidebar-menu"
-      :collapse-transition="false" <!-- 禁用折叠动画 -->
+      :collapse-transition="false"
     >
       <!-- 首页菜单项 -->
       <el-menu-item index="/">

@@ -5,10 +5,10 @@
       ref="uploadRef"
       class="upload-area"
       drag
-      :auto-upload="false" <!-- 关闭自动上传，手动控制 -->
-      :show-file-list="false" <!-- 隐藏文件列表 -->
-      accept="image/jpeg,image/png,image/webp" <!-- 支持的图片格式 -->
-      :on-change="handleChange" <!-- 文件选择变化时的回调 -->
+      :auto-upload="false"
+      :show-file-list="false"
+      accept="image/jpeg,image/png,image/webp"
+      :on-change="handleChange"
     >
       <!-- 上传占位符 -->
       <div v-if="!previewUrl" class="upload-placeholder">
