@@ -117,9 +117,11 @@ export const useChatStore = defineStore('chat', () => {
         buffer = lines.pop() || ''
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith('data:')) {
             try {
-              const data = JSON.parse(line.slice(6))
+              let msgData = line.slice(5)
+              console.log('Received SSE data:', msgData);
+              const data = JSON.parse(msgData)
               if (data.token) {
                 streamingContent.value += data.token
                 assistantMsg.content = streamingContent.value
@@ -127,8 +129,9 @@ export const useChatStore = defineStore('chat', () => {
               if (data.done && data.messageId) {
                 assistantMsg.messageId = data.messageId
               }
-            } catch {
-              // 跳过无效的JSON
+            } catch( error) {
+              const err = error as Error;
+              console.error('Failed to parse SSE data:', err.message, 'Raw line:', line);
             }
           }
         }

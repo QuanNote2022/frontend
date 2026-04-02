@@ -83,6 +83,7 @@ import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import ChatMessageComp from '@/components/common/ChatMessage.vue'
+import {Aim, ChatDotRound, Delete, Loading, Plus, Promotion} from "@element-plus/icons-vue";
 
 /**
  * 聊天页面组件
