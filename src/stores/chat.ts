@@ -17,6 +17,7 @@ export const useChatStore = defineStore('chat', () => {
   const currentSessionId = ref<string | null>(null) // 当前会话ID
   const messages = ref<ChatMessage[]>([]) // 消息列表
   const isGenerating = ref(false) // 生成状态
+  const isLoadingSessions = ref(false) // 加载会话列表状态
   const streamingContent = ref('') // 流式内容
   const mineralContext = ref<string | null>(null) // 矿物上下文
   let abortController: AbortController | null = null // 用于中断流式请求
@@ -25,8 +26,13 @@ export const useChatStore = defineStore('chat', () => {
    * 加载会话列表
    */
   async function loadSessions() {
-    const res = await getSessionsApi({ page: 1, pageSize: 50 })
-    sessions.value = res.data.list
+    isLoadingSessions.value = true
+    try {
+      const res = await getSessionsApi({ page: 1, pageSize: 50 })
+      sessions.value = res.data.list
+    } finally {
+      isLoadingSessions.value = false
+    }
   }
 
   /**
@@ -180,7 +186,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
-    sessions, currentSessionId, messages, isGenerating, streamingContent, mineralContext,
+    sessions, currentSessionId, messages, isGenerating, isLoadingSessions, streamingContent, mineralContext,
     loadSessions, createSession, switchSession, sendMessage, stopGeneration, removeSession, setMineralContext,
   }
 })
