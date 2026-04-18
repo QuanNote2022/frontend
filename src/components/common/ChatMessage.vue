@@ -1,31 +1,31 @@
 <template>
   <div class="chat-message" :class="[`role-${message.role}`]">
-    <!-- 消息头像 -->
     <div class="message-avatar">
-      <!-- AI 助手头像 -->
       <el-avatar v-if="message.role === 'assistant'" :size="36" style="background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);">
         <el-icon><Service /></el-icon>
       </el-avatar>
-      <!-- 用户头像 -->
       <el-avatar v-else :size="36" style="background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);">
         {{ '我' }}
       </el-avatar>
     </div>
-    <!-- 消息内容 -->
     <div class="message-body">
       <div class="message-content">
-        <!-- AI 消息使用 Markdown 渲染 -->
+        <div v-if="message.role === 'user' && message.documents && message.documents.length > 0" class="message-documents">
+          <div class="doc-indicator" v-for="doc in message.documents.slice(0, 3)" :key="doc.documentId">
+            <el-icon><Document /></el-icon>
+            <span>{{ doc.fileName }}</span>
+          </div>
+          <div v-if="message.documents.length > 3" class="doc-more">
+            +{{ message.documents.length - 3 }} 个文件
+          </div>
+        </div>
         <MarkdownRenderer v-if="message.role === 'assistant'" :content="message.content" />
-        <!-- 用户消息直接显示文本 -->
         <p v-else>{{ message.content }}</p>
-        <!-- 流式输出时的光标动画 -->
         <span v-if="streaming" class="cursor-blink">|</span>
       </div>
-      <!-- 消息时间和操作 -->
       <div class="message-footer">
         <span class="message-time">{{ formatDate(message.createdAt) }}</span>
         
-        <!-- 消息操作按钮 -->
         <transition name="fade">
           <div v-if="!streaming" class="message-actions">
             <el-tooltip content="复制" placement="top" :show-after="500">
@@ -60,6 +60,7 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import { Document, DocumentCopy, RefreshRight, Service } from '@element-plus/icons-vue'
 import type { ChatMessage } from '@/types/chat'
 import { formatDate } from '@/utils/format'
 import MarkdownRenderer from './MarkdownRenderer.vue'
@@ -152,6 +153,47 @@ function handleRegenerate() {
   word-break: break-word;
   transition: all 0.3s ease;
   p { margin: 0; }
+}
+
+.message-documents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.doc-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+
+  .el-icon {
+    font-size: 14px;
+  }
+
+  span {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.doc-more {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .message-footer {

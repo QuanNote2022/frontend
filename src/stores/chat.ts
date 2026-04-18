@@ -1,30 +1,20 @@
-/**
- * 聊天状态管理
- * 管理聊天会话、消息和流式生成等
- */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { createSessionApi, getSessionsApi, getSessionMessagesApi, deleteSessionApi, sendMessageUrl } from '@/api/chat'
+import { createSessionApi, getSessionsApi, getSessionMessagesApi, deleteSessionApi, sendMessageUrl, uploadDocumentApi, getSessionDocumentsApi, deleteDocumentApi } from '@/api/chat'
 import { getToken } from '@/utils/storage'
-import type { ChatSession, ChatMessage } from '@/types/chat'
+import type { ChatSession, ChatMessage, FileDocument } from '@/types/chat'
 
-/**
- * 聊天状态存储
- */
 export const useChatStore = defineStore('chat', () => {
-  // 状态
-  const sessions = ref<ChatSession[]>([]) // 会话列表
-  const currentSessionId = ref<string | null>(null) // 当前会话ID
-  const messages = ref<ChatMessage[]>([]) // 消息列表
-  const isGenerating = ref(false) // 生成状态
-  const isLoadingSessions = ref(false) // 加载会话列表状态
-  const streamingContent = ref('') // 流式内容
-  const mineralContext = ref<string | null>(null) // 矿物上下文
-  let abortController: AbortController | null = null // 用于中断流式请求
+  const sessions = ref<ChatSession[]>([])
+  const currentSessionId = ref<string | null>(null)
+  const messages = ref<ChatMessage[]>([])
+  const isGenerating = ref(false)
+  const isLoadingSessions = ref(false)
+  const streamingContent = ref('')
+  const mineralContext = ref<string | null>(null)
+  const uploadedDocuments = ref<FileDocument[]>([])
+  let abortController: AbortController | null = null
 
-  /**
-   * 加载会话列表
-   */
   async function loadSessions() {
     isLoadingSessions.value = true
     try {
@@ -35,50 +25,66 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  /**
-   * 创建新会话
-   * @param mineralName 矿物名称（可选）
-   * @returns 新会话信息
-   */
   async function createSession(mineralName?: string) {
     const res = await createSessionApi({ mineralName })
     sessions.value.unshift(res.data)
     currentSessionId.value = res.data.sessionId
     messages.value = []
+    uploadedDocuments.value = []
     if (mineralName) {
       mineralContext.value = mineralName
     }
     return res.data
   }
 
-  /**
-   * 切换会话
-   * @param sessionId 会话ID
-   */
   async function switchSession(sessionId: string) {
     currentSessionId.value = sessionId
     const res = await getSessionMessagesApi(sessionId)
     messages.value = res.data
+    await loadSessionDocuments(sessionId)
   }
 
-  /**
-   * 发送消息
-   * @param content 消息内容
-   */
+  async function loadSessionDocuments(sessionId: string) {
+    try {
+      const res = await getSessionDocumentsApi(sessionId)
+      uploadedDocuments.value = res.data
+    } catch {
+      uploadedDocuments.value = []
+    }
+  }
+
+  async function uploadDocument(file: File) {
+    if (!currentSessionId.value) return null
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await uploadDocumentApi(currentSessionId.value, formData)
+    uploadedDocuments.value.push(res.data)
+    return res.data
+  }
+
+  async function removeDocument(docId: string) {
+    if (!currentSessionId.value) return
+    await deleteDocumentApi(currentSessionId.value, docId)
+    uploadedDocuments.value = uploadedDocuments.value.filter(d => d.documentId !== docId)
+  }
+
   async function sendMessage(content: string) {
     if (!currentSessionId.value) return
 
-    // 添加用户消息
+    const documentIds = uploadedDocuments.value.map(d => d.documentId)
+    const currentDocs = uploadedDocuments.value.length > 0 ? [...uploadedDocuments.value] : undefined
+
     const userMsg: ChatMessage = {
       messageId: `user_${Date.now()}`,
       sessionId: currentSessionId.value,
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
+      documentIds: documentIds.length > 0 ? documentIds : undefined,
+      documents: currentDocs,
     }
     messages.value.push(userMsg)
 
-    // 添加助手消息（占位）
     const assistantMsg: ChatMessage = {
       messageId: `assistant_${Date.now()}`,
       sessionId: currentSessionId.value,
@@ -88,7 +94,6 @@ export const useChatStore = defineStore('chat', () => {
     }
     messages.value.push(assistantMsg)
 
-    // 开始生成
     isGenerating.value = true
     streamingContent.value = ''
     abortController = new AbortController()
@@ -101,7 +106,7 @@ export const useChatStore = defineStore('chat', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ content, mineralContext: mineralContext.value }),
+        body: JSON.stringify({ content, mineralContext: mineralContext.value, documentIds }),
         signal: abortController.signal,
       })
 
@@ -109,7 +114,6 @@ export const useChatStore = defineStore('chat', () => {
         throw new Error('请求失败')
       }
 
-      // 处理流式响应
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
@@ -135,7 +139,7 @@ export const useChatStore = defineStore('chat', () => {
               if (data.done && data.messageId) {
                 assistantMsg.messageId = data.messageId
               }
-            } catch( error) {
+            } catch(error) {
               const err = error as Error;
               console.error('Failed to parse SSE data:', err.message, 'Raw line:', line);
             }
@@ -155,38 +159,28 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  /**
-   * 停止生成
-   */
   function stopGeneration() {
     if (abortController) {
       abortController.abort()
     }
   }
 
-  /**
-   * 删除会话
-   * @param sessionId 会话ID
-   */
   async function removeSession(sessionId: string) {
     await deleteSessionApi(sessionId)
     sessions.value = sessions.value.filter((s) => s.sessionId !== sessionId)
     if (currentSessionId.value === sessionId) {
       currentSessionId.value = null
       messages.value = []
+      uploadedDocuments.value = []
     }
   }
 
-  /**
-   * 设置矿物上下文
-   * @param name 矿物名称
-   */
   function setMineralContext(name: string | null) {
     mineralContext.value = name
   }
 
   return {
-    sessions, currentSessionId, messages, isGenerating, isLoadingSessions, streamingContent, mineralContext,
-    loadSessions, createSession, switchSession, sendMessage, stopGeneration, removeSession, setMineralContext,
+    sessions, currentSessionId, messages, isGenerating, isLoadingSessions, streamingContent, mineralContext, uploadedDocuments,
+    loadSessions, createSession, switchSession, loadSessionDocuments, uploadDocument, removeDocument, sendMessage, stopGeneration, removeSession, setMineralContext,
   }
 })

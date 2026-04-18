@@ -130,27 +130,53 @@
         </div>
       </transition>
 
-      <div class="input-area">
-        <div class="input-wrapper">
+      <div class="input-area"
+        @dragover.prevent="handleDragOver"
+        @dragleave.prevent="handleDragLeave"
+        @drop.prevent="handleDrop"
+        :class="{ 'is-dragging': isDragging }"
+      >
+        <div class="input-wrapper" :class="{ 'has-documents': chatStore.uploadedDocuments.length > 0 }">
+          <transition-group name="doc-tag" tag="div" class="document-tags" v-if="chatStore.uploadedDocuments.length > 0">
+            <div class="doc-tag" v-for="doc in chatStore.uploadedDocuments" :key="doc.documentId">
+              <el-icon class="doc-icon"><Document /></el-icon>
+              <span class="doc-name">{{ doc.fileName }}</span>
+              <el-icon class="doc-remove" @click="handleRemoveDoc(doc.documentId)"><Close /></el-icon>
+            </div>
+          </transition-group>
           <el-input
             v-model="inputText"
             type="textarea"
-            :rows="2"
-            placeholder="请输入问题... (Enter 发送，Shift+Enter 换行)"
+            :rows="chatStore.uploadedDocuments.length > 0 ? 1 : 2"
+            :placeholder="chatStore.uploadedDocuments.length > 0 ? '添加消息...' : '请输入问题... (Enter 发送，Shift+Enter 换行)'"
             :disabled="chatStore.isGenerating"
             resize="none"
             class="input-textarea"
             @keydown="handleKeyDown"
           />
-          <button
-            class="send-btn"
-            :disabled="!inputText.trim() || chatStore.isGenerating"
-            @click="handleSend"
-          >
-            <el-icon v-if="!chatStore.isGenerating" :size="20"><Promotion /></el-icon>
-            <el-icon v-else class="is-loading" :size="20"><Loading /></el-icon>
-          </button>
+          <div class="action-buttons">
+            <el-tooltip content="上传文件" placement="top">
+              <el-button class="upload-btn" @click="handleFileSelect" :loading="isUploading">
+                <el-icon :size="18"><Upload /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <button
+              class="send-btn"
+              :disabled="(!inputText.trim() && chatStore.uploadedDocuments.length === 0) || chatStore.isGenerating"
+              @click="handleSend"
+            >
+              <el-icon v-if="!chatStore.isGenerating" :size="20"><Promotion /></el-icon>
+              <el-icon v-else class="is-loading" :size="20"><Loading /></el-icon>
+            </button>
+          </div>
         </div>
+        <transition name="fade">
+          <div v-if="isDragging" class="drag-overlay">
+            <el-icon :size="48"><Upload /></el-icon>
+            <span>释放文件以上传</span>
+          </div>
+        </transition>
+        <input type="file" ref="fileInputRef" style="display: none" accept=".txt,.pdf,.doc,.docx,.md,.xls,.xlsx" @change="handleFileChange" />
       </div>
     </div>
   </div>
@@ -161,7 +187,7 @@ import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import ChatMessageComp from '@/components/common/ChatMessage.vue'
-import { Aim, ChatDotRound, Delete, Loading, Plus, Promotion, QuestionFilled } from "@element-plus/icons-vue"
+import { Aim, ChatDotRound, Close, Delete, Document, Loading, Plus, Promotion, QuestionFilled, Upload } from "@element-plus/icons-vue"
 
 const route = useRoute()
 const chatStore = useChatStore()
@@ -170,6 +196,9 @@ const inputText = ref('')
 const messagesRef = ref<HTMLDivElement>()
 const showScrollButton = ref(false)
 const isAtBottom = ref(true)
+const fileInputRef = ref<HTMLInputElement>()
+const isUploading = ref(false)
+const isDragging = ref(false)
 
 const suggestedQuestions = [
   '石英有哪些常见的用途？',
@@ -265,6 +294,61 @@ async function handleSwitchSession(sessionId: string) {
 
 async function handleDeleteSession(sessionId: string) {
   await chatStore.removeSession(sessionId)
+}
+
+function handleFileSelect() {
+  fileInputRef.value?.click()
+}
+
+async function handleFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  if (!chatStore.currentSessionId) {
+    await chatStore.createSession(chatStore.mineralContext || undefined)
+  }
+
+  isUploading.value = true
+  try {
+    await chatStore.uploadDocument(file)
+  } finally {
+    isUploading.value = false
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
+    }
+  }
+}
+
+async function handleRemoveDoc(docId: string) {
+  await chatStore.removeDocument(docId)
+}
+
+function handleDragOver() {
+  isDragging.value = true
+}
+
+function handleDragLeave() {
+  isDragging.value = false
+}
+
+async function handleDrop(event: DragEvent) {
+  isDragging.value = false
+  const files = event.dataTransfer?.files
+  if (!files || files.length === 0) return
+
+  if (!chatStore.currentSessionId) {
+    await chatStore.createSession(chatStore.mineralContext || undefined)
+  }
+
+  isUploading.value = true
+  try {
+    for (const file of Array.from(files)) {
+      await chatStore.uploadDocument(file)
+    }
+  } finally {
+    isUploading.value = false
+  }
 }
 </script>
 
@@ -653,53 +737,178 @@ async function handleDeleteSession(sessionId: string) {
   padding: $spacing-4 $spacing-6 $spacing-6;
   border-top: 1px solid $gray-100;
   background: $bg-card;
+  position: relative;
 }
 
 .input-wrapper {
   display: flex;
-  gap: $spacing-3;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: $spacing-2;
+  background: $gray-50;
+  border: 2px solid $gray-200;
+  border-radius: $radius-xl;
+  padding: $spacing-3;
+  transition: $transition-fast;
+
+  &:focus-within {
+    border-color: $primary-500;
+    box-shadow: 0 0 0 4px rgba($primary-500, 0.1);
+  }
+
+  &.has-documents {
+    background: $bg-card;
+  }
+}
+
+.document-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin-bottom: $spacing-1;
+}
+
+.doc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  background: rgba($primary-500, 0.08);
+  border: 1px solid rgba($primary-500, 0.2);
+  border-radius: $radius-lg;
+  font-size: $font-size-xs;
+  color: $primary-600;
+  transition: $transition-fast;
+
+  .doc-icon {
+    color: $primary-500;
+  }
+
+  .doc-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .doc-remove {
+    cursor: pointer;
+    color: $gray-400;
+    transition: $transition-fast;
+    margin-left: $spacing-1;
+
+    &:hover {
+      color: $danger-color;
+    }
+  }
+}
+
+.doc-tag-enter-active,
+.doc-tag-leave-active {
+  transition: all 0.2s ease;
+}
+
+.doc-tag-enter-from,
+.doc-tag-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.drag-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-4;
+  background: rgba($primary-500, 0.95);
+  color: white;
+  border-radius: $radius-xl;
+  z-index: 10;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+}
+
+.is-dragging {
+  .input-wrapper {
+    border-color: $primary-500;
+    background: rgba($primary-500, 0.05);
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: $spacing-2;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: $spacing-2;
+}
+
+.upload-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: $radius-lg;
+  color: $gray-500;
+  cursor: pointer;
+  transition: $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $gray-200;
+    color: $gray-800;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .input-textarea {
   flex: 1;
-  
+
   :deep(.el-textarea__inner) {
-    border-radius: $radius-xl;
-    border: 2px solid $gray-200;
+    border-radius: $radius-lg;
+    border: none;
+    background: transparent;
     font-size: $font-size-sm;
-    padding: $spacing-4;
+    padding: $spacing-2;
     resize: none;
-    transition: $transition-fast;
-    
-    &:hover { border-color: $gray-300; }
-    
+    box-shadow: none;
+
+    &::placeholder {
+      color: $gray-400;
+    }
+
     &:focus {
-      border-color: $primary-500;
-      box-shadow: 0 0 0 4px rgba($primary-500, 0.1);
+      box-shadow: none;
     }
   }
 }
 
 .send-btn {
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: $gradient-primary;
   border: none;
-  border-radius: $radius-xl;
+  border-radius: $radius-lg;
   color: white;
   cursor: pointer;
   transition: $transition-slow;
   flex-shrink: 0;
-  
+
   &:hover:not(:disabled) {
     transform: scale(1.05);
     box-shadow: $shadow-primary;
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
