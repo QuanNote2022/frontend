@@ -156,7 +156,70 @@ export const useChatStore = defineStore('chat', () => {
       isGenerating.value = false
       streamingContent.value = ''
       abortController = null
+      updateSessionTitle(content)
     }
+  }
+
+  function updateSessionTitle(content: string) {
+    const session = sessions.value.find(s => s.sessionId === currentSessionId.value)
+    if (session && session.title === '新会话') {
+      const newTitle = generateTitleFromContent(content)
+      session.title = newTitle
+    }
+  }
+
+  function generateTitleFromContent(content: string): string {
+    if (!content || content.trim().length === 0) {
+      return '新会话'
+    }
+    
+    const trimmedContent = content.trim()
+    
+    if (trimmedContent.length <= 20) {
+      return trimmedContent
+    }
+    
+    let title = trimmedContent
+    
+    const prefixes = [
+      '请介绍一下', '介绍一下', '请介绍', '介绍下',
+      '请详细介绍一下', '详细介绍一下', '详细介绍',
+      '我想了解一下', '想了解一下', '我想了解', '想了解',
+      '请问一下', '请问', '帮我', '帮我查一下',
+      '能不能告诉我', '能告诉我', '告诉我',
+      '什么是', '什么叫',
+      '如何理解', '怎么理解', '为什么叫'
+    ]
+    
+    for (const prefix of prefixes) {
+      if (title.startsWith(prefix)) {
+        title = title.substring(prefix.length).trim()
+        break
+      }
+    }
+    
+    const suffixes = [
+      '的特点', '的特性', '的用途', '的产地', '的性质',
+      '有哪些', '有什么', '是什么', '是怎么样的',
+      '呢', '吗', '啊', '呀'
+    ]
+    
+    for (const suffix of suffixes) {
+      if (title.endsWith(suffix)) {
+        title = title.substring(0, title.length - suffix.length).trim()
+        break
+      }
+    }
+    
+    if (title.length > 15) {
+      title = title.substring(0, 15) + '...'
+    }
+    
+    if (title.length === 0) {
+      title = trimmedContent.substring(0, Math.min(15, trimmedContent.length)) + '...'
+    }
+    
+    return title
   }
 
   function stopGeneration() {

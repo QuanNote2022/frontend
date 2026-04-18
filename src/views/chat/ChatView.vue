@@ -177,7 +177,7 @@
             <span>释放文件以上传</span>
           </div>
         </transition>
-        <input type="file" ref="fileInputRef" style="display: none" accept=".txt,.pdf,.doc,.docx,.md,.xls,.xlsx" @change="handleFileChange" />
+        <input type="file" ref="fileInputRef" style="display: none" accept=".txt,.md,.doc,.docx,.xls,.xlsx" @change="handleFileChange" />
       </div>
     </div>
   </div>
