@@ -102,6 +102,7 @@
             :key="msg.messageId"
             :message="msg"
             :streaming="chatStore.isGenerating && idx === chatStore.messages.length - 1 && msg.role === 'assistant'"
+            @regenerate="handleRegenerate"
           />
         </transition-group>
         
@@ -294,6 +295,10 @@ async function handleSwitchSession(sessionId: string) {
 
 async function handleDeleteSession(sessionId: string) {
   await chatStore.removeSession(sessionId)
+}
+
+async function handleRegenerate() {
+  await chatStore.regenerate()
 }
 
 function handleFileSelect() {
