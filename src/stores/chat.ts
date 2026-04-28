@@ -129,15 +129,13 @@ export const useChatStore = defineStore('chat', () => {
         for (const line of lines) {
           if (line.startsWith('data:')) {
             try {
-              let msgData = line.slice(5)
-              console.log('Received SSE data:', msgData);
-              const data = JSON.parse(msgData)
+              const data = JSON.parse(line.slice(5))
               if (data.token) {
                 streamingContent.value += data.token
-                assistantMsg.content = streamingContent.value
+                messages.value[messages.value.length - 1].content = streamingContent.value
               }
               if (data.done && data.messageId) {
-                assistantMsg.messageId = data.messageId
+                messages.value[messages.value.length - 1].messageId = data.messageId
               }
             } catch(error) {
               const err = error as Error;
@@ -148,9 +146,9 @@ export const useChatStore = defineStore('chat', () => {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        assistantMsg.content = streamingContent.value + '\n\n[已停止生成]'
+        messages.value[messages.value.length - 1].content = streamingContent.value + '\n\n[已停止生成]'
       } else {
-        assistantMsg.content = '抱歉，请求出错了，请稍后重试。'
+        messages.value[messages.value.length - 1].content = '抱歉，请求出错了，请稍后重试。'
       }
     } finally {
       isGenerating.value = false
@@ -295,10 +293,10 @@ export const useChatStore = defineStore('chat', () => {
               const data = JSON.parse(msgData)
               if (data.token) {
                 streamingContent.value += data.token
-                assistantMsg.content = streamingContent.value
+                messages.value[messages.value.length - 1].content = streamingContent.value
               }
               if (data.done && data.messageId) {
-                assistantMsg.messageId = data.messageId
+                messages.value[messages.value.length - 1].messageId = data.messageId
               }
             } catch(error) {
               const err = error as Error;
@@ -309,9 +307,9 @@ export const useChatStore = defineStore('chat', () => {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        assistantMsg.content = streamingContent.value + '\n\n[已停止生成]'
+        messages.value[messages.value.length - 1].content = streamingContent.value + '\n\n[已停止生成]'
       } else {
-        assistantMsg.content = '抱歉，请求出错了，请稍后重试。'
+        messages.value[messages.value.length - 1].content = '抱歉，请求出错了，请稍后重试。'
       }
     } finally {
       isGenerating.value = false
