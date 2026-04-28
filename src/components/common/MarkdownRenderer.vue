@@ -1,33 +1,26 @@
 <template>
-  <!-- 渲染 Markdown 内容的容器 -->
   <div class="markdown-body" v-html="renderedHtml"></div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import MarkdownIt from 'markdown-it'
+import texmath from 'markdown-it-texmath'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 
-/**
- * 组件属性
- */
 const props = defineProps<{
-  content: string // Markdown 内容
+  content: string
 }>()
 
-/**
- * Markdown 渲染实例
- * @description 配置 Markdown 解析器，禁用 HTML 渲染，启用自动换行和链接自动识别
- */
 const md = new MarkdownIt({
-  html: false, // 禁用 HTML 渲染，防止 XSS 攻击
-  breaks: true, // 启用自动换行
-  linkify: true, // 启用链接自动识别
+  html: false,
+  breaks: true,
+  linkify: true,
 })
 
-/**
- * 渲染后的 HTML 内容
- * @description 将 Markdown 内容转换为 HTML
- */
+md.use(texmath, { engine: katex })
+
 const renderedHtml = computed(() => md.render(props.content || ''))
 </script>
 
@@ -37,28 +30,23 @@ const renderedHtml = computed(() => md.render(props.content || ''))
   line-height: 1.7;
   color: #303133;
 
-  // 标题样式
   :deep(h1), :deep(h2), :deep(h3) {
     margin: 12px 0 8px;
     color: #303133;
   }
   :deep(h2) { font-size: 16px; }
   :deep(h3) { font-size: 15px; }
-  
-  // 段落样式
+
   :deep(p) { margin: 6px 0; }
-  
-  // 列表样式
+
   :deep(ul), :deep(ol) {
     padding-left: 20px;
     margin: 6px 0;
   }
   :deep(li) { margin: 3px 0; }
-  
-  // 强调样式
+
   :deep(strong) { color: #303133; }
-  
-  // 行内代码样式
+
   :deep(code) {
     background: #f0f0f0;
     padding: 2px 6px;
@@ -66,8 +54,7 @@ const renderedHtml = computed(() => md.render(props.content || ''))
     font-size: 13px;
     font-family: 'Courier New', monospace;
   }
-  
-  // 代码块样式
+
   :deep(pre) {
     background: #2d2d2d;
     color: #ccc;
@@ -81,8 +68,7 @@ const renderedHtml = computed(() => md.render(props.content || ''))
       color: inherit;
     }
   }
-  
-  // 表格样式
+
   :deep(table) {
     border-collapse: collapse;
     width: 100%;
@@ -94,14 +80,24 @@ const renderedHtml = computed(() => md.render(props.content || ''))
     }
     th { background: #f5f7fa; font-weight: 600; }
   }
-  
-  // 引用样式
+
   :deep(blockquote) {
     border-left: 4px solid #409eff;
     padding: 8px 16px;
     margin: 8px 0;
     background: #ecf5ff;
     color: #606266;
+  }
+
+  // KaTeX formula styles
+  :deep(.katex) {
+    font-size: 1.05em;
+  }
+
+  :deep(.katex-display) {
+    margin: 1em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 }
 </style>
