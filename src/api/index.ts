@@ -46,19 +46,20 @@ service.interceptors.response.use(
     if (res.code !== 200) {
       // 显示错误消息
       ElMessage.error(res.message || '请求失败')
-      // 处理未授权错误
-      if (res.code === 401) {
-        removeToken()
-        router.push('/login')
-      }
       return Promise.reject(new Error(res.message || '请求失败'))
     }
     // 返回响应数据
     return res as any
   },
   (error) => {
-    // 处理网络错误
-    ElMessage.error(error.message || '网络错误')
+    // 处理 HTTP 401/403 未授权（token 过期或无效）
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      removeToken()
+      router.push('/login')
+      ElMessage.error('登录已过期，请重新登录')
+    } else {
+      ElMessage.error(error.message || '网络错误')
+    }
     return Promise.reject(error)
   }
 )
