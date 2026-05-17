@@ -17,7 +17,6 @@ import type {
   UserPreferences,
   Achievement,
   AvatarUploadResult,
-  DataExportResult,
 } from '@/types/user'
 
 /**
@@ -106,8 +105,9 @@ export function getUserAchievementsApi() {
   return request.get<any, ApiResponse<Achievement[]>>('/user/achievements')
 }
 
-export function exportUserDataApi() {
-  return request.post<any, ApiResponse<DataExportResult>>('/user/data/export')
+export function exportUserDataUrl(): string {
+  const base = import.meta.env.VITE_API_BASE_URL || '/api'
+  return `${base}/user/data/export`
 }
 
 export function clearHistoryApi(type: 'detect' | 'chat' | 'all') {

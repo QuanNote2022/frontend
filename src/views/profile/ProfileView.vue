@@ -147,6 +147,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/format'
+import { getToken } from '@/utils/storage'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getUserStatsApi,
@@ -157,7 +158,7 @@ import {
   getUserPreferencesApi,
   updateUserPreferencesApi,
   getUserAchievementsApi,
-  exportUserDataApi,
+  exportUserDataUrl,
   clearHistoryApi,
   deleteAccountApi,
 } from '@/api/user'
@@ -300,9 +301,19 @@ async function handleUpdatePreferences(data: Partial<UserPreferences>) {
 
 async function handleExportData() {
   try {
-    const res = await exportUserDataApi()
-    ElMessage.success('数据导出成功，请查看下载链接')
-    console.log('Download URL:', res.data.downloadUrl)
+    const response = await fetch(exportUserDataUrl(), {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    if (!response.ok) throw new Error('导出失败')
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'mineral-data-export.json'
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('数据导出成功')
   } catch {
     ElMessage.error('导出失败')
   }
