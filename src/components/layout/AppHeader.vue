@@ -13,16 +13,78 @@
       </div>
       
       <div class="header-center">
-        <div class="search-box">
+        <div class="search-box" ref="searchRef">
           <el-icon class="search-icon"><Search /></el-icon>
-          <input 
-            type="text" 
-            placeholder="搜索矿物、问答..." 
+          <input
+            ref="inputRef"
+            type="text"
+            placeholder="搜索矿物、问答..."
             class="search-input"
+            :class="{ 'is-active': showDropdown }"
             v-model="searchQuery"
-            @keyup.enter="handleSearch"
+            @input="handleSearchInput"
+            @keydown="handleKeyDown"
+            @focus="handleFocus"
           />
           <span class="search-shortcut">⌘K</span>
+          <transition name="search-dropdown">
+            <div v-if="showDropdown" class="search-dropdown">
+              <div v-if="isSearching" class="dropdown-loading">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>搜索中...</span>
+              </div>
+              <div v-else-if="flattenedResults.length === 0" class="dropdown-empty">
+                <el-icon><Search /></el-icon>
+                <span>未找到相关结果</span>
+              </div>
+              <template v-else>
+                <div v-if="searchResults.minerals.length > 0" class="result-group">
+                  <div class="group-header">
+                    <el-icon><Collection /></el-icon>
+                    <span>矿物</span>
+                  </div>
+                  <div
+                    v-for="(m, i) in searchResults.minerals"
+                    :key="m.name"
+                    class="result-item"
+                    :class="{ highlighted: i === highlightedIndex }"
+                    @mousedown.prevent="selectMineral(m.name)"
+                    @mouseenter="highlightedIndex = i"
+                  >
+                    <div class="item-icon mineral-icon">
+                      <el-icon><Collection /></el-icon>
+                    </div>
+                    <div class="item-content">
+                      <span class="item-name">{{ m.name }}</span>
+                      <span class="item-sub">{{ m.formula }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="searchResults.sessions.length > 0" class="result-group">
+                  <div class="group-header">
+                    <el-icon><ChatDotRound /></el-icon>
+                    <span>问答记录</span>
+                  </div>
+                  <div
+                    v-for="(s, j) in searchResults.sessions"
+                    :key="s.sessionId"
+                    class="result-item"
+                    :class="{ highlighted: (searchResults.minerals.length + j) === highlightedIndex }"
+                    @mousedown.prevent="selectSession(s.sessionId)"
+                    @mouseenter="highlightedIndex = searchResults.minerals.length + j"
+                  >
+                    <div class="item-icon session-icon">
+                      <el-icon><ChatDotRound /></el-icon>
+                    </div>
+                    <div class="item-content">
+                      <span class="item-name">{{ s.title }}</span>
+                      <span class="item-sub">{{ s.messageCount }} 条消息</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </transition>
         </div>
       </div>
       
@@ -93,9 +155,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { searchApi } from '@/api/search'
+import type { MineralInfo } from '@/types/mineral'
+import type { ChatSession } from '@/types/chat'
 
 defineEmits(['toggle-sidebar'])
 
@@ -104,14 +169,113 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const searchQuery = ref('')
+const searchResults = ref<{ minerals: MineralInfo[]; sessions: ChatSession[] }>({ minerals: [], sessions: [] })
+const isSearching = ref(false)
+const showDropdown = ref(false)
+const highlightedIndex = ref(-1)
+const searchRef = ref<HTMLDivElement>()
+const inputRef = ref<HTMLInputElement>()
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentRoute = computed(() => route)
 
-function handleSearch() {
-  if (searchQuery.value.trim()) {
-    console.log('Search:', searchQuery.value)
+const flattenedResults = computed(() => {
+  const items: Array<{ type: 'mineral'; data: MineralInfo } | { type: 'session'; data: ChatSession }> = []
+  for (const m of searchResults.value.minerals) items.push({ type: 'mineral' as const, data: m })
+  for (const s of searchResults.value.sessions) items.push({ type: 'session' as const, data: s })
+  return items
+})
+
+function handleSearchInput() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+
+  const keyword = searchQuery.value.trim()
+  if (!keyword) {
+    searchResults.value = { minerals: [], sessions: [] }
+    showDropdown.value = false
+    highlightedIndex.value = -1
+    return
+  }
+
+  debounceTimer = setTimeout(async () => {
+    isSearching.value = true
+    try {
+      const res = await searchApi(keyword)
+      searchResults.value = res.data
+      highlightedIndex.value = -1
+      showDropdown.value = true
+    } catch {
+      searchResults.value = { minerals: [], sessions: [] }
+      showDropdown.value = true
+    } finally {
+      isSearching.value = false
+    }
+  }, 300)
+}
+
+function selectMineral(name: string) {
+  showDropdown.value = false
+  searchQuery.value = ''
+  router.push(`/mineral/${encodeURIComponent(name)}`)
+}
+
+function selectSession(sessionId: string) {
+  showDropdown.value = false
+  searchQuery.value = ''
+  router.push(`/chat/${sessionId}`)
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+  if (!showDropdown.value) return
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    highlightedIndex.value = Math.min(highlightedIndex.value + 1, flattenedResults.value.length - 1)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    highlightedIndex.value = Math.max(highlightedIndex.value - 1, 0)
+  } else if (e.key === 'Enter') {
+    if (highlightedIndex.value >= 0 && highlightedIndex.value < flattenedResults.value.length) {
+      e.preventDefault()
+      const item = flattenedResults.value[highlightedIndex.value]
+      if (item.type === 'mineral') selectMineral(item.data.name)
+      else selectSession(item.data.sessionId)
+    }
+  } else if (e.key === 'Escape') {
+    showDropdown.value = false
+    highlightedIndex.value = -1
   }
 }
+
+function handleFocus() {
+  if (searchQuery.value.trim()) {
+    showDropdown.value = true
+  }
+}
+
+function handleClickOutside(e: MouseEvent) {
+  if (searchRef.value && !searchRef.value.contains(e.target as Node)) {
+    showDropdown.value = false
+  }
+}
+
+function handleGlobalKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault()
+    inputRef.value?.focus()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown)
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown)
+  document.removeEventListener('click', handleClickOutside)
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 function handleCommand(cmd: string) {
   if (cmd === 'profile') {
@@ -258,6 +422,134 @@ function handleCommand(cmd: string) {
     border-radius: $radius-sm;
     pointer-events: none;
   }
+
+  .search-input.is-active {
+    border-color: $primary-500;
+    background: $bg-card;
+    box-shadow: 0 2px 12px rgba($primary-500, 0.12);
+    border-bottom-left-radius: $radius-sm;
+    border-bottom-right-radius: $radius-sm;
+  }
+
+  .search-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: $bg-card;
+    border: 1px solid rgba($gray-200, 0.8);
+    border-radius: $radius-lg;
+    box-shadow: $shadow-xl;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: $z-dropdown;
+    @include custom-scrollbar(4px);
+  }
+
+  .dropdown-loading,
+  .dropdown-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-2;
+    padding: $spacing-8;
+    font-size: $font-size-sm;
+    color: $gray-400;
+  }
+
+  .result-group {
+    padding: $spacing-2 0;
+
+    & + & {
+      border-top: 1px solid $gray-100;
+    }
+  }
+
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    padding: $spacing-2 $spacing-4;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    color: $gray-400;
+    text-transform: uppercase;
+    letter-spacing: $letter-spacing-wide;
+
+    .el-icon { font-size: 14px; }
+  }
+
+  .result-item {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    padding: $spacing-3 $spacing-4;
+    cursor: pointer;
+    transition: $transition-fast;
+
+    &:hover,
+    &.highlighted {
+      background: rgba($primary-500, 0.06);
+    }
+
+    &.highlighted {
+      border-left: 3px solid $primary-500;
+    }
+  }
+
+  .item-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $radius-md;
+    flex-shrink: 0;
+
+    &.mineral-icon {
+      background: rgba($primary-500, 0.08);
+      color: $primary-500;
+    }
+
+    &.session-icon {
+      background: rgba($secondary-500, 0.08);
+      color: $secondary-500;
+    }
+  }
+
+  .item-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .item-name {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $gray-700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-sub {
+      font-size: $font-size-xs;
+      color: $gray-400;
+      margin-top: 1px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.search-dropdown-enter-active,
+.search-dropdown-leave-active {
+  transition: all 200ms $ease-out;
+}
+.search-dropdown-enter-from,
+.search-dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 .header-right {

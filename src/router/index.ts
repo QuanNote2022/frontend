@@ -50,6 +50,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/mineral/MineralDetailView.vue'),
         meta: { title: '识别详情' },
       },
+      // 矿物信息页面（独立，非检测记录）
+      {
+        path: 'mineral/:name',
+        name: 'MineralInfo',
+        component: () => import('@/views/mineral/MineralInfoView.vue'),
+        meta: { title: '矿物详情' },
+      },
       // 聊天页面
       {
         path: 'chat',

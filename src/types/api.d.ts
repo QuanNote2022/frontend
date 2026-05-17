@@ -31,6 +31,14 @@ export interface PageResult<T> {
 }
 
 /**
+ * 全局搜索结果
+ */
+export interface SearchResult {
+  minerals: import('./mineral').MineralInfo[]
+  sessions: import('./chat').ChatSession[]
+}
+
+/**
  * 分页查询接口
  */
 export interface PageQuery {
