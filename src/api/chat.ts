@@ -20,11 +20,6 @@ export function deleteSessionApi(sessionId: string) {
 
 export function sendMessageUrl(sessionId: string): string {
   const base = import.meta.env.VITE_API_BASE_URL || '/api'
-  // 开发模式下 SSE 流式请求绕过 Vite 代理直连后端
-  // Vite 的 http-proxy 会缓冲/不传播上游连接关闭，导致 SSE 无法正常结束
-  if (import.meta.env.DEV && base === '/api') {
-    return `http://localhost:8080/chat/session/${sessionId}/send`
-  }
   return `${base}/chat/session/${sessionId}/send`
 }
 

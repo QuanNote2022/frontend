@@ -317,6 +317,8 @@ async function handleClearHistory(type: 'detect' | 'chat' | 'all') {
     )
     await clearHistoryApi(type)
     ElMessage.success('历史记录已清除')
+    await loadStats()
+    await loadAchievements()
   } catch {
     // 用户取消
   }
