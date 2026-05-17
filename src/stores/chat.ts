@@ -118,31 +118,38 @@ export const useChatStore = defineStore('chat', () => {
       const decoder = new TextDecoder()
       let buffer = ''
 
-      while (true) {
+      let streamDone = false
+      while (!streamDone) {
         const { done, value } = await reader.read()
-        if (done) break
 
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        if (value) {
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
 
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            try {
-              const data = JSON.parse(line.slice(5))
-              if (data.token) {
-                streamingContent.value += data.token
-                messages.value[messages.value.length - 1].content = streamingContent.value
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              try {
+                const data = JSON.parse(line.slice(5).trim())
+                if (data.token) {
+                  streamingContent.value += data.token
+                  messages.value[messages.value.length - 1].content = streamingContent.value
+                }
+                if (data.done) {
+                  if (data.messageId) {
+                    messages.value[messages.value.length - 1].messageId = data.messageId
+                  }
+                  streamDone = true
+                }
+              } catch(error) {
+                const err = error as Error;
+                console.error('Failed to parse SSE data:', err.message, 'Raw line:', line);
               }
-              if (data.done && data.messageId) {
-                messages.value[messages.value.length - 1].messageId = data.messageId
-              }
-            } catch(error) {
-              const err = error as Error;
-              console.error('Failed to parse SSE data:', err.message, 'Raw line:', line);
             }
           }
         }
+
+        if (done) break
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -278,32 +285,38 @@ export const useChatStore = defineStore('chat', () => {
       const decoder = new TextDecoder()
       let buffer = ''
 
-      while (true) {
+      let streamDone = false
+      while (!streamDone) {
         const { done, value } = await reader.read()
-        if (done) break
 
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        if (value) {
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
 
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            try {
-              let msgData = line.slice(5)
-              const data = JSON.parse(msgData)
-              if (data.token) {
-                streamingContent.value += data.token
-                messages.value[messages.value.length - 1].content = streamingContent.value
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              try {
+                const data = JSON.parse(line.slice(5).trim())
+                if (data.token) {
+                  streamingContent.value += data.token
+                  messages.value[messages.value.length - 1].content = streamingContent.value
+                }
+                if (data.done) {
+                  if (data.messageId) {
+                    messages.value[messages.value.length - 1].messageId = data.messageId
+                  }
+                  streamDone = true
+                }
+              } catch(error) {
+                const err = error as Error;
+                console.error('Failed to parse SSE data:', err.message, 'Raw line:', line);
               }
-              if (data.done && data.messageId) {
-                messages.value[messages.value.length - 1].messageId = data.messageId
-              }
-            } catch(error) {
-              const err = error as Error;
-              console.error('Failed to parse SSE data:', err.message, 'Raw line:', line);
             }
           }
         }
+
+        if (done) break
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -312,7 +325,9 @@ export const useChatStore = defineStore('chat', () => {
         messages.value[messages.value.length - 1].content = '抱歉，请求出错了，请稍后重试。'
       }
     } finally {
-      isGenerating.value = false
+      if (isGenerating.value) {
+        isGenerating.value = false
+      }
       streamingContent.value = ''
       abortController = null
     }

@@ -57,6 +57,21 @@ export default defineConfig(({ mode }) => {
               '/api': {
                 target: 'http://localhost:8080', // 后端API地址
                 changeOrigin: true, // 更改源
+                configure: (proxy) => {
+                  proxy.on('proxyReq', (proxyReq, req) => {
+                    // SSE 端点不走代理缓冲
+                    if (req.url?.includes('/chat/session') && req.url?.includes('/send')) {
+                      proxyReq.setHeader('Connection', 'keep-alive')
+                    }
+                  })
+                  proxy.on('proxyRes', (proxyRes, req) => {
+                    // SSE 响应禁用缓冲
+                    if (req.url?.includes('/chat/session') && req.url?.includes('/send')) {
+                      proxyRes.headers['cache-control'] = 'no-cache'
+                      proxyRes.headers['x-accel-buffering'] = 'no'
+                    }
+                  })
+                },
               },
             },
           }),
